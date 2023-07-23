@@ -3,7 +3,6 @@ const hospitals = require("../models/hospitalDetailsModel");
 exports.getHospitals = async (req, res) => {
   try {
     const { area, searchName, latitude, longitude, range } = req.query;
-    // console.log(req.query);
     const filter = {};
     if (area) filter.area = area.split(",");
     if (searchName) filter.hospitalName = new RegExp(searchName, "i");
