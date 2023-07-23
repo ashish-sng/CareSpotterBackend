@@ -2,7 +2,7 @@ const hospitals = require("../models/hospitalDetailsModel");
 
 exports.getHospitals = async (req, res) => {
   try {
-    const { area, searchName, latitude, longitude, range } = req.query;
+    const { area, searchName, latitude, longitude, range, sortBy } = req.query;
     const filter = {};
     if (area) filter.area = area.split(",");
     if (searchName) filter.hospitalName = new RegExp(searchName, "i");
@@ -32,7 +32,9 @@ exports.getHospitals = async (req, res) => {
 
     // console.log(filter);
 
-    const hospitalsList = await hospitals.find(filter);
+    const hospitalsList = await hospitals
+      .find(filter)
+      .sort({ [req.query.sortBy || "hospitalName"]: 1 });
 
     res.status(200).json({
       status: "success",
@@ -44,7 +46,7 @@ exports.getHospitals = async (req, res) => {
   } catch (err) {
     res.status(404).json({
       status: "fail",
-      message: err,
+      message: err.message,
     });
   }
 };
