@@ -1,4 +1,5 @@
 const hospitals = require("../models/hospitalDetailsModel");
+const haversine = require("haversine");
 
 exports.getHospitals = async (req, res) => {
   try {
@@ -6,35 +7,37 @@ exports.getHospitals = async (req, res) => {
     const filter = {};
     if (area) filter.area = area.split(",");
     if (searchName) filter.hospitalName = new RegExp(searchName, "i");
-    // console.log( latitude && longitude && range);
-    if (latitude && longitude && range) {
-      // Convert the range to kilometers (you can adjust this if needed)
-      const rangeInKm = parseFloat(range);
-      // const rangeInKm = parseFloat(range) / 1000;
 
-      // Calculate the coordinates for the square bounding box
-      const earthRadiusKm = 6371; // Earth radius in kilometers
-      const latRadian = (parseFloat(latitude) * Math.PI) / 180;
-      const lonRadian = (parseFloat(longitude) * Math.PI) / 180;
-      const latDelta = rangeInKm / earthRadiusKm;
-      const lonDelta = rangeInKm / (earthRadiusKm * Math.cos(latRadian));
+    const fixedPoint = {
+      latitude: parseFloat(latitude),
+      longitude: parseFloat(longitude),
+    };
 
-      // Create a bounding box for the given range
-      const minLat = parseFloat(latitude) - latDelta;
-      const maxLat = parseFloat(latitude) + latDelta;
-      const minLon = parseFloat(longitude) - lonDelta;
-      const maxLon = parseFloat(longitude) + lonDelta;
+    if (range) {
+      const allHospitals = await hospitals.find().select("latitude longitude");
 
-      // Add the latitude and longitude filter to the query
-      filter.latitude = { $gte: minLat, $lte: maxLat };
-      filter.longitude = { $gte: minLon, $lte: maxLon };
+      const hospitalsInRange = allHospitals.filter((hospital) => {
+        const dist = haversine(
+          fixedPoint,
+          {
+            latitude: hospital.latitude,
+            longitude: hospital.longitude,
+          },
+          { unit: "km" }
+        );
+        return dist <= parseFloat(range);
+      });
+
+      const hospitalsInRangeIds = hospitalsInRange.map(
+        (hospital) => hospital._id
+      );
+
+      filter._id = { $in: hospitalsInRangeIds };
     }
-
-    // console.log(filter);
 
     const hospitalsList = await hospitals
       .find(filter)
-      .sort({ [req.query.sortBy || "hospitalName"]: 1 });
+      .sort({ [sortBy || "hospitalName"]: 1 });
 
     res.status(200).json({
       status: "success",
